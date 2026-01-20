@@ -352,27 +352,10 @@ class _VeiculosListScreenState extends State<VeiculosListScreen> {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          onPressed: () async {
-            final alterou = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(builder: (_) => const VeiculoFormScreen()),
-            );
 
-            if (alterou == true) {
-              _donoPorPlaca.clear();
-              _listaProprietariosCache = [];
-              if (proprietarioEncontrado != null) {
-                await pesquisarPorCpfCnpj();
-              } else if (_placaController.text.trim().isNotEmpty) {
-                await pesquisarPorPlaca();
-              }
-            }
-          },
-          child: const Icon(Icons.add),
-        ),
+        // ✅ REMOVIDO: botão "+" (adicionar veículo só pelo proprietário)
+        // floatingActionButton: ...
+
         body: TabBarView(
           children: [
             Padding(
