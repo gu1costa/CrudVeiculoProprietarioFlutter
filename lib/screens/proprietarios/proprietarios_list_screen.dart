@@ -21,6 +21,10 @@ class _ProprietariosListScreenState extends State<ProprietariosListScreen> {
 
   late Future<List<Proprietario>> proprietariosFuture;
   final Map<int, Future<List<Veiculo>>> _veiculosFuturePorProp = {};
+  final TextEditingController _searchController = TextEditingController();
+  List<Proprietario> _todosProprietarios = [];
+  List<Proprietario> _proprietariosFiltrados = [];
+  bool _buscando = false;
 
   @override
   void initState() {
@@ -28,10 +32,29 @@ class _ProprietariosListScreenState extends State<ProprietariosListScreen> {
     carregar();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void carregar() {
     proprietariosFuture = ProprietarioApi.listarTodos();
     _veiculosFuturePorProp.clear();
     setState(() {});
+  }
+
+  void _filtrarProprietarios(String query) {
+    setState(() {
+      _buscando = query.isNotEmpty;
+      if (query.isEmpty) {
+        _proprietariosFiltrados = [];
+      } else {
+        _proprietariosFiltrados = _todosProprietarios
+            .where((p) => p.nome.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      }
+    });
   }
 
   Future<List<Veiculo>> _getVeiculosFuture(int proprietarioId) {
@@ -306,6 +329,44 @@ class _ProprietariosListScreenState extends State<ProprietariosListScreen> {
     );
   }
 
+  Widget _searchBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _filtrarProprietarios,
+        decoration: InputDecoration(
+          hintText: "Buscar proprietário...",
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _filtrarProprietarios('');
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: primary, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -326,6 +387,7 @@ class _ProprietariosListScreenState extends State<ProprietariosListScreen> {
       body: Column(
         children: [
           _headerCard(),
+          _searchBar(),
           Expanded(
             child: FutureBuilder<List<Proprietario>>(
               future: proprietariosFuture,
@@ -339,17 +401,25 @@ class _ProprietariosListScreenState extends State<ProprietariosListScreen> {
                 }
 
                 final lista = snapshot.data ?? [];
+                _todosProprietarios = lista;
+                final listaExibir = _buscando ? _proprietariosFiltrados : lista;
 
-                if (lista.isEmpty) {
-                  return const Center(child: Text("Nenhum proprietário cadastrado."));
+                if (listaExibir.isEmpty) {
+                  return Center(
+                    child: Text(
+                      _buscando 
+                          ? "Nenhum proprietário encontrado para '${_searchController.text}'."
+                          : "Nenhum proprietário cadastrado."
+                    ),
+                  );
                 }
 
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(12, 6, 12, 14),
-                  itemCount: lista.length,
+                  itemCount: listaExibir.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    final p = lista[index];
+                    final p = listaExibir[index];
 
                     return Container(
                       decoration: BoxDecoration(

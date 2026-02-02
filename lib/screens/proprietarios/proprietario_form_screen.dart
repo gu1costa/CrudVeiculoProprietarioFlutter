@@ -5,6 +5,19 @@ import '../../api/api_exception.dart';
 import '../../api/proprietario_api.dart';
 import '../../models/Proprietario.dart';
 
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
+
 class ProprietarioFormScreen extends StatefulWidget {
   final Proprietario? proprietario;
 
@@ -34,7 +47,6 @@ class _ProprietarioFormScreenState extends State<ProprietarioFormScreen> {
     super.initState();
 
     if (editando) {
-      cpfController.text = onlyDigits(widget.proprietario!.cpfCnpj);
       nomeController.text = widget.proprietario!.nome;
       enderecoController.text = widget.proprietario!.endereco;
     }
@@ -53,6 +65,21 @@ class _ProprietarioFormScreenState extends State<ProprietarioFormScreen> {
     return null;
   }
 
+  String? validarNome(String? v) {
+    if (v == null || v.trim().isEmpty) return "Informe o nome";
+    
+    final nome = v.trim();
+    if (nome.contains(RegExp(r'[0-9]'))) {
+      return "O nome não pode conter números";
+    }
+    
+    if (nome.contains(RegExp(r'[!@#$%^&*()_+=\[\]{};:"\\|,.<>\/?~`-]'))) {
+      return "O nome não pode conter símbolos";
+    }
+    
+    return null;
+  }
+
   Future<void> salvar() async {
     FocusScope.of(context).unfocus();
 
@@ -63,18 +90,21 @@ class _ProprietarioFormScreenState extends State<ProprietarioFormScreen> {
     setState(() => carregando = true);
 
     try {
-      final cpf = onlyDigits(cpfController.text.trim());
-      final nome = nomeController.text.trim();
-      final endereco = enderecoController.text.trim();
-
       if (editando) {
+        final nome = nomeController.text.trim();
+        final endereco = enderecoController.text.trim();
+        
         await ProprietarioApi.atualizar(
           id: widget.proprietario!.id,
-          cpfCnpj: cpf,
+          cpfCnpj: widget.proprietario!.cpfCnpj,
           nome: nome,
           endereco: endereco,
         );
       } else {
+        final cpf = onlyDigits(cpfController.text.trim());
+        final nome = nomeController.text.trim();
+        final endereco = enderecoController.text.trim();
+
         await ProprietarioApi.criar(
           cpfCnpj: cpf,
           nome: nome,
@@ -131,30 +161,34 @@ class _ProprietarioFormScreenState extends State<ProprietarioFormScreen> {
           key: formKey,
           child: Column(
             children: [
-              TextFormField(
-                controller: cpfController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(14),
-                ],
-                decoration: const InputDecoration(
-                  labelText: "CPF/CNPJ",
-                  hintText: "Somente números (11 ou 14 dígitos)",
+              if (!editando) ...[
+                TextFormField(
+                  controller: cpfController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(14),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: "CPF/CNPJ",
+                    hintText: "Somente números (11 ou 14 dígitos)",
+                  ),
+                  onChanged: (_) {
+                    if (cpfErroServidor != null) {
+                      setState(() => cpfErroServidor = null);
+                    }
+                  },
+                  validator: validarCpfCnpj,
                 ),
-                onChanged: (_) {
-                  if (cpfErroServidor != null) {
-                    setState(() => cpfErroServidor = null);
-                  }
-                },
-                validator: validarCpfCnpj,
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               TextFormField(
                 controller: nomeController,
                 decoration: const InputDecoration(labelText: "Nome"),
-                validator: (v) =>
-                (v == null || v.trim().isEmpty) ? "Informe o nome" : null,
+                validator: validarNome,
+                inputFormatters: [
+                  UpperCaseTextFormatter(),
+                ],
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -163,6 +197,9 @@ class _ProprietarioFormScreenState extends State<ProprietarioFormScreen> {
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? "Informe o endereço"
                     : null,
+                inputFormatters: [
+                  UpperCaseTextFormatter(),
+                ],
               ),
               const SizedBox(height: 20),
               SizedBox(
